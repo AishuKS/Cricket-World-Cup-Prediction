@@ -1,0 +1,1092 @@
+---
+title: "Predictions for the 2023 ICC Cricket World Cup"
+output: pdf_document
+date: "2023-11-30"
+---
+
+```{r}
+library(ggplot2)
+library(caTools)
+library(randomForest)
+library(dplyr)
+library(fastDummies)
+library(tidyverse)
+library(caret)
+library(pROC)
+library(gplots)
+library(corrplot)
+library(ggcorrplot)
+```
+
+
+```{r}
+#Reading the dataset
+World_cup <- read.csv("World_cup_2023.csv")
+results <- read.csv("results.csv")
+
+World_cup
+```
+
+No.of titles won by each teams
+
+```{r}
+ggplot(World_cup, aes(x = Team_name, y = Titles, fill = Team_name)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = rainbow(nrow(World_cup))) +  # Use rainbow colors
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  labs(title = "Team Titles in World Cup",
+       x = "Team Name",
+       y = "Titles")
+
+```
+
+
+Win percentage in ODI by each team
+
+```{r}
+ggplot(World_cup, aes(x = Team_name, y = Win_percentage_ODI, fill = Team_name)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = rainbow(nrow(World_cup))) +  # Use rainbow colors
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  labs(title = "Team Titles in World Cup",
+       x = "Team Name",
+       y = "Titles")
+
+```
+
+
+No.of matches won in world cup by each team
+
+
+```{r}
+ggplot(World_cup, aes(x = Team_name, y = WC_match_won, fill = Team_name)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = rainbow(nrow(World_cup))) +  # Use rainbow colors
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  labs(title = "Team Titles in World Cup",
+       x = "Team Name",
+       y = "Titles")
+```
+
+
+Recent ICC ODI rating
+
+```{r}
+
+ggplot(World_cup, aes(x = Team_name, y = Rating, fill = Team_name)) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = rainbow(nrow(World_cup))) +  # Use rainbow colors
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  labs(title = "Team Titles in World Cup",
+       x = "Team Name",
+       y = "Titles")
+
+```
+
+
+
+```{r}
+head(results)
+```
+
+```{r}
+#Removing the Match abandoned and No result data from Winner column
+results <- results[results$Winner != 'Match abandoned', ]
+results <- results[results$Winner != 'No result', ]
+
+```
+
+
+
+Stats of top five teams in the ODI world cup 2023
+
+Stats of Indian team
+
+
+```{r}
+
+#Filtering India
+df <- results[results$Team_1 == 'India' | results$Team_2 == 'India', ]
+India <- df
+
+head(India)
+
+
+```
+
+
+```{r}
+
+India_win <- India[India$Winner == 'India', ]
+head(India_win)
+
+```
+
+
+No.of wins in ODIs against other teams
+
+
+```{r}
+excluded_value <- 'India'
+filtered_df <- India_win[India_win$Team_2 != excluded_value, ]
+value_counts <- table(filtered_df$Team_2)
+print(value_counts)
+
+```
+
+
+```{r}
+
+excluded_value <- 'India'
+
+filtered_df <- India_win[India_win$Team_1 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_1)
+
+print(value_counts)
+
+```
+
+
+Displaying Team India's wins against other teams using bar graph
+
+```{r}
+
+exclude <- 'India'
+
+filtered_data <- India_win[India_win$Team_2 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_2), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_2)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "blue", main = "Top 5 Opponents Faced by India", xlab = "Opponent", ylab = "Number of Matches")
+
+```
+
+
+```{r}
+exclude <- 'India'
+
+filtered_data <- India_win[India_win$Team_1 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_1), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_1)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "blue", main = "Top 5 Opponents Faced by India", xlab = "Opponent", ylab = "Number of Matches")
+
+```
+
+
+Win Percentage of India Against Each Team
+
+
+```{r}
+# Number of wins against each team
+team_win_counts <- c(
+  Australia = 54,
+  `New Zealand` = 58,
+  `South Africa` = 37,
+  Pakistan = 55,
+  `Sri Lanka` = 93,
+  Bangladesh = 30,
+  England = 57,
+  Netherlands = 2,
+  Afghanistan = 3
+)
+
+total_matches <- sum(team_win_counts)
+
+win_percentages <- (team_win_counts / total_matches) * 100
+
+# Pie chart
+pie(win_percentages, labels = names(win_percentages), col = rainbow(length(win_percentages)), 
+    main = "Win Percentage of India Against Each Team", cex.main = 0.8, clockwise = TRUE)
+
+legend("topright", legend = paste(names(win_percentages), sprintf("(%.1f%%)", win_percentages), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages)))
+
+```
+
+
+
+Win Percentage of India in the ODI world cup
+
+```{r}
+# Number of wins against each team in the ODI world cup
+team_win_counts_wc_ind <- c(
+  Australia = 4,
+  `New Zealand` = 3,
+  `South Africa` = 2,
+  Pakistan = 7,
+  `Sri Lanka` = 5,
+  Bangladesh = 3,
+  England = 3,
+  Netherlands = 2,
+  Afghanistan = 2
+)
+
+total_matches_wc_ind <- sum(team_win_counts_wc_ind)
+
+win_percentages_wc_ind <- (team_win_counts_wc_ind / total_matches_wc_ind) * 100
+
+pie(win_percentages_wc_ind, labels = names(win_percentages_wc_ind), col = rainbow(length(win_percentages_wc_ind)), 
+    main = "Win Percentage of India in the ODI World Cup", cex.main = 0.8, clockwise = TRUE)
+
+legend("topright", legend = paste(names(win_percentages_wc_ind), sprintf("(%.1f%%)", win_percentages_wc_ind), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages_wc_ind)))
+
+```
+
+
+Stats of Australian team
+
+```{r}
+# Filter the Australia Data
+df1 <- results[results$Team_1 == 'Australia' | results$Team_2 == 'Australia', ]
+
+Australia <- df1
+
+head(Australia)
+
+```
+
+
+```{r}
+Australia_win <- Australia[Australia$Winner == 'Australia', ]
+head(Australia_win)
+
+```
+
+No.of wins for Australia against other teams
+
+```{r}
+excluded_value <- 'Australia'
+filtered_df <- Australia_win[Australia_win$Team_2 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_2)
+
+print(value_counts)
+
+```
+
+
+```{r}
+excluded_value <- 'Australia'
+
+filtered_df <- Australia_win[Australia_win$Team_1 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_1)
+
+print(value_counts)
+```
+
+Displaying Team Australia's wins against other teams using bar graph
+
+```{r}
+exclude <- 'Australia'
+
+filtered_data <- Australia_win[Australia_win$Team_2 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_2), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_2)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "darkgreen", main = "Top 5 Opponents Faced by Australia", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+```{r}
+exclude <- 'Australia'
+
+filtered_data <- Australia_win[Australia_win$Team_1 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_1), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_1)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "darkgreen", main = "Top 5 Opponents Faced by Australia", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+Win Percentage of Australia Against Each Team
+
+```{r}
+# Number of wins against each team
+team_win_counts <- c(
+  'India'= 82,
+  'New Zealand'= 95,
+  'South Africa '= 48,
+  'Pakistan'= 69,
+  'Sri Lanka'= 63,
+  'Bangladesh'= 19,
+  'England'= 87,
+  'Netherlands'= 2,
+  'Afghanistan'= 3
+)
+
+total_matches <- sum(team_win_counts)
+
+win_percentages <- (team_win_counts / total_matches) * 100
+
+pie(win_percentages, labels = names(win_percentages), col = rainbow(length(win_percentages)), 
+    main = "Win Percentage of Australia Against Each Team", cex.main = 0.8, clockwise = TRUE)
+
+
+legend("topright", legend = paste(names(win_percentages), sprintf("(%.1f%%)", win_percentages), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages)))
+```
+
+
+Win Percentage of Australia in the ODI world cup
+
+```{r}
+# Number of wins against each team in the ODI world cup
+team_win_counts_wc_ind <- c(
+  'India'= 8,
+  'New Zealand'= 8,
+  'South Africa '= 3,
+  'Pakistan'= 6,
+  'Sri Lanka'= 8,
+  'Bangladesh'= 3,
+  'England'= 6,
+  'Netherlands'= 2,
+  'Afghanistan'= 2
+)
+
+total_matches_wc_ind <- sum(team_win_counts_wc_ind)
+
+win_percentages_wc_ind <- (team_win_counts_wc_ind / total_matches_wc_ind) * 100
+
+pie(win_percentages_wc_ind, labels = names(win_percentages_wc_ind), col = rainbow(length(win_percentages_wc_ind)), 
+    main = "Win Percentage of Australia in the ODI World Cup", cex.main = 0.8, clockwise = TRUE)
+
+legend("topright", legend = paste(names(win_percentages_wc_ind), sprintf("(%.1f%%)", win_percentages_wc_ind), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages_wc_ind)))
+```
+
+
+
+Stats of Pakistan team
+
+```{r}
+#Filter the Pakistan Data
+df2 <- results[results$Team_1 == 'Pakistan' | results$Team_2 == 'Pakistan', ]
+Pakistan <- df2
+
+head(Pakistan)
+```
+
+
+```{r}
+Pakistan_win <- Pakistan[Pakistan$Winner == 'Pakistan', ]
+head(Pakistan_win)
+
+```
+
+
+No.of wins for Pakistan against other teams
+
+```{r}
+excluded_value <- 'Pakistan'
+
+filtered_df <- Pakistan_win[Pakistan_win$Team_2 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_2)
+
+print(value_counts)
+```
+
+
+```{r}
+excluded_value <- 'Pakistan'
+
+filtered_df <- Pakistan_win[Pakistan_win$Team_1 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_1)
+
+print(value_counts)
+
+```
+
+
+Displaying Team Pakistan's wins against other teams using bar graph
+
+```{r}
+exclude <- 'Pakistan'
+
+filtered_data <- Pakistan_win[Pakistan_win$Team_2 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_2), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_2)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "darkblue", main = "Top 5 Opponents Faced by Pakistan", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+```{r}
+exclude <- 'Pakistan'
+
+filtered_data <- Pakistan_win[Pakistan_win$Team_1 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_1), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_1)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "darkblue", main = "Top 5 Opponents Faced by Pakistan", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+Win Percentage of Pakistan Against Each Team
+
+```{r}
+# Number of wins against each team
+team_win_counts <- c(
+  'India'= 73,
+  'New Zealand'= 60,
+  'South Africa '= 30,
+  'Australia'= 34,
+  'Sri Lanka'= 92,
+  'Bangladesh'= 32,
+  'England'= 32,
+  'Netherlands'= 3,
+  'Afghanistan'= 7
+)
+
+total_matches <- sum(team_win_counts)
+
+win_percentages <- (team_win_counts / total_matches) * 100
+
+pie(win_percentages, labels = names(win_percentages), col = rainbow(length(win_percentages)), 
+    main = "Win Percentage of Pakistan Against Each Team", cex.main = 0.8, clockwise = TRUE)
+
+
+legend("topright", legend = paste(names(win_percentages), sprintf("(%.1f%%)", win_percentages), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages)))
+```
+
+
+Win Percentage of Pakistan in the ODI world cup
+
+```{r}
+# Number of wins against each team in the ODI world cup
+team_win_counts_wc_ind <- c(
+  'India'= 0,
+  'New Zealand'= 7,
+  'South Africa '= 2,
+  'Australia'= 4,
+  'Sri Lanka'= 7,
+  'Bangladesh'= 1,
+  'England'= 5,
+  'Afghanistan'= 1
+)
+
+total_matches_wc_ind <- sum(team_win_counts_wc_ind)
+
+win_percentages_wc_ind <- (team_win_counts_wc_ind / total_matches_wc_ind) * 100
+
+pie(win_percentages_wc_ind, labels = names(win_percentages_wc_ind), col = rainbow(length(win_percentages_wc_ind)), 
+    main = "Win Percentage of Pakistan in the ODI World Cup", cex.main = 0.8, clockwise = TRUE)
+
+legend("topright", legend = paste(names(win_percentages_wc_ind), sprintf("(%.1f%%)", win_percentages_wc_ind), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages_wc_ind)))
+```
+
+
+Stats of New Zealand team
+
+```{r}
+# Filter the New Zealand data
+df3 <- results[results$Team_1 == 'New Zealand' | results$Team_2 == 'New Zealand', ]
+New_Zealand <- df3
+
+head(New_Zealand)
+```
+
+
+```{r}
+New_Zealand_win <- New_Zealand[New_Zealand$Winner == 'New Zealand', ]
+head(New_Zealand_win)
+
+```
+
+No.of wins for New Zealand in ODIs against other teams
+
+```{r}
+excluded_value <- 'New Zealand'
+
+filtered_df <- New_Zealand_win[New_Zealand_win$Team_2 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_2)
+
+print(value_counts)
+```
+
+```{r}
+excluded_value <- 'New Zealand'
+
+filtered_df <- New_Zealand_win[New_Zealand_win$Team_1 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_1)
+
+print(value_counts)
+```
+
+Displaying Team New Zealand's wins against other teams using bar graph
+
+```{r}
+exclude <- 'New Zealand'
+
+filtered_data <- New_Zealand_win[New_Zealand_win$Team_2 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_2), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_2)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "yellow", main = "Top 5 Opponents Faced by New Zealand", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+```{r}
+exclude <- 'New Zealand'
+
+filtered_data <- New_Zealand_win[New_Zealand_win$Team_1 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_1), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_1)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "yellow", main = "Top 5 Opponents Faced by New Zealand", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+
+Win Percentage of New Zealand Against Each Team
+
+
+```{r}
+# Number of wins against each team
+team_win_counts <- c(
+  'Australia'= 39,
+  'India'= 50,
+  'South Africa '= 26,
+  'Pakistan'= 50,
+  'Sri Lanka'= 49,
+  'Bangladesh'= 28,
+  'England'= 42,
+  'Netherlands'= 4,
+  'Afghanistan'= 2
+)
+
+total_matches <- sum(team_win_counts)
+
+win_percentages <- (team_win_counts / total_matches) * 100
+
+pie(win_percentages, labels = names(win_percentages), col = rainbow(length(win_percentages)), 
+    main = "Win Percentage of New Zealand Against Each Team", cex.main = 0.8, clockwise = TRUE)
+
+
+legend("topright", legend = paste(names(win_percentages), sprintf("(%.1f%%)", win_percentages), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages)))
+```
+
+
+Win Percentage of New Zealand in the ODI world cup
+
+```{r}
+# Number of wins against each team in the ODI world cup
+team_win_counts_wc_ind <- c(
+  'Australia'= 3,
+  'India'= 5,
+  'South Africa '= 5,
+  'Pakistan'= 2,
+  'Sri Lanka'= 5,
+  'Bangladesh'= 5,
+  'England'= 5,
+  'Netherlands'= 4,
+  'Afghanistan'= 2
+)
+
+total_matches_wc_ind <- sum(team_win_counts_wc_ind)
+
+win_percentages_wc_ind <- (team_win_counts_wc_ind / total_matches_wc_ind) * 100
+
+pie(win_percentages_wc_ind, labels = names(win_percentages_wc_ind), col = rainbow(length(win_percentages_wc_ind)), 
+    main = "Win Percentage of New Zealand in the ODI World Cup", cex.main = 0.8, clockwise = TRUE)
+
+legend("topright", legend = paste(names(win_percentages_wc_ind), sprintf("(%.1f%%)", win_percentages_wc_ind), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages_wc_ind)))
+```
+
+
+Stats of England team
+
+```{r}
+# Filter the England data
+df4 <- results[results$Team_1 == 'England' | results$Team_2 == 'England', ]
+
+England <- df4
+
+head(England)
+```
+
+```{r}
+England_win <- England[England$Winner == 'England', ]
+head(England_win)
+
+```
+
+No.of wins for England against other teams
+
+```{r}
+excluded_value <- 'England'
+
+filtered_df <- England_win[England_win$Team_2 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_2)
+
+print(value_counts)
+```
+
+
+```{r}
+excluded_value <- 'England'
+
+filtered_df <- England_win[England_win$Team_1 != excluded_value, ]
+
+value_counts <- table(filtered_df$Team_1)
+
+print(value_counts)
+```
+
+
+Displaying Team England's wins against other teams using bar graph
+
+```{r}
+exclude <- 'England'
+
+filtered_data <- England_win[England_win$Team_2 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_2), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_2)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "purple", main = "Top 5 Opponents Faced by England", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+```{r}
+exclude <- 'England'
+
+filtered_data <- England_win[England_win$Team_1 != exclude, ]
+
+top_opponents <- head(names(sort(table(filtered_data$Team_1), decreasing = TRUE)), 5)
+top_opponents_counts <- as.numeric(table(filtered_data$Team_1)[top_opponents])
+
+barplot(top_opponents_counts, names.arg = top_opponents, col = "purple", main = "Top 5 Opponents Faced by England", xlab = "Opponent", ylab = "Number of Matches")
+```
+
+
+Win Percentage of England Against Each Team
+
+```{r}
+# Number of wins against each team
+team_win_counts <- c(
+  'India'= 44,
+  'New Zealand'= 42,
+  'South Africa '= 29,
+  'Australia'= 63,
+  'Sri Lanka'= 38,
+  'Bangladesh'= 19,
+  'Pakistan'= 56,
+  'Netherlands'= 6,
+  'Afghanistan'= 2
+)
+
+total_matches <- sum(team_win_counts)
+
+win_percentages <- (team_win_counts / total_matches) * 100
+
+pie(win_percentages, labels = names(win_percentages), col = rainbow(length(win_percentages)), 
+    main = "Win Percentage of England Against Each Team", cex.main = 0.8, clockwise = TRUE)
+
+
+legend("topright", legend = paste(names(win_percentages), sprintf("(%.1f%%)", win_percentages), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages)))
+```
+
+
+```{r}
+# Number of wins against each team in the ODI world cup
+team_win_counts_wc_ind <- c(
+  'Australia'= 3,
+  'India'= 4,
+  'South Africa' = 4,
+  'Pakistan'= 4,
+  'Sri Lanka'= 6,
+  'Bangladesh'= 5,
+  'New Zealand'= 5,
+  'Netherlands'= 4,
+  'Afghanistan'= 2
+)
+
+total_matches_wc_ind <- sum(team_win_counts_wc_ind)
+
+win_percentages_wc_ind <- (team_win_counts_wc_ind / total_matches_wc_ind) * 100
+
+pie(win_percentages_wc_ind, labels = names(win_percentages_wc_ind), col = rainbow(length(win_percentages_wc_ind)), 
+    main = "Win Percentage of England in the ODI World Cup", cex.main = 0.8, clockwise = TRUE)
+
+legend("topright", legend = paste(names(win_percentages_wc_ind), sprintf("(%.1f%%)", win_percentages_wc_ind), sep = " "), cex = 0.8, fill = rainbow(length(win_percentages_wc_ind)))
+```
+
+```{r}
+modified_WorldCup_data = World_cup
+modified_WorldCup_data$World_cup_winner <- ifelse(modified_WorldCup_data$World_cup_winner == "Yes", 1, 0)
+modified_WorldCup_data = subset(modified_WorldCup_data, select = -c(Team_name))
+
+correlation_matrix <- cor(modified_WorldCup_data)
+
+#corrplot(correlation_matrix, method = "color", type = "upper", addCoef.col = "white")
+ggcorrplot(correlation_matrix,
+           hc.order = TRUE,
+           type = "lower",
+           method = "circle",
+           outline.color = "white",
+           col = c("yellow", "orange", "green"),
+           pch = c(19, 15, 17),
+           tl.cex = 1.2,
+           tl.col = "black") +
+  labs(title = "Correlation Matrix of ICC World Cup Dataset") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 16),
+        axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+
+
+```{r}
+# cricket teams participating in the world cup
+worldcup_teams <- c('England', ' South Africa', '', 'West Indies',
+                    'Pakistan', 'New Zealand', 'Sri Lanka', 'Afghanistan',
+                    'Australia', 'Bangladesh', 'India')
+
+# Filtering data involving only teams in the 'worldcup_teams' list
+df_teams_1 <- results[results$Team_1 %in% worldcup_teams, ]
+df_teams_2 <- results[results$Team_2 %in% worldcup_teams, ]
+
+df_teams <- rbind(df_teams_1, df_teams_2)
+nrow(df_teams)
+
+```
+
+
+```{r}
+head(df_teams)
+```
+
+
+```{r}
+df_teams_2019 <- subset(df_teams, select = -c(Date, Margin, Ground))
+
+head(df_teams_2019)
+
+```
+
+
+
+Feature selection
+
+```{r}
+
+df_teams_2019 <- df_teams_2019[ , !(names(df_teams_2019) %in% c("winning_team"))]
+rownames(df_teams_2019) <- NULL
+
+df_teams_2019$winning_team <- ifelse(df_teams_2019$Winner == df_teams_2019$Team_1, 1, NA)
+
+df_teams_2019$winning_team[is.na(df_teams_2019$winning_team) & df_teams_2019$Winner == df_teams_2019$Team_2] <- 2
+
+df_teams_2019 <- subset(df_teams_2019, select = -c(winning_team))
+
+head(df_teams_2019)
+
+
+```
+
+
+Training and testing the data
+
+```{r}
+final <- data.frame(model.matrix(~ Team_1 + Team_2 - 1, data = df_teams_2019), df_teams_2019)
+
+X <- final[, !(names(final) %in% c("Winner"))]
+
+y <- final$Winner
+
+set.seed(42)
+
+# training and testing partition
+split <- sample.split(y, SplitRatio = 0.8)
+
+# splitting training and testing sets
+X_train <- X[split, ]
+X_test <- X[!split, ]
+y_train <- y[split]
+y_test <- y[!split]
+
+
+```
+
+
+
+```{r}
+head(final)
+```
+
+
+
+
+Applying Random forest classifier algorithm
+
+
+
+```{r}
+y_train <- as.factor(y_train)
+y_test <- as.factor(y_test)
+
+rf <- randomForest(y_train ~ ., data = cbind(X_train, y_train), ntree = 100, mtry = 20, nodesize = 1, importance = TRUE, seed = 0)
+
+pred <- predict(rf, newdata = X_test)
+
+levels_pred <- levels(pred)
+levels_y_test <- levels(y_test)
+common_levels <- union(levels_pred, levels_y_test)
+
+pred <- factor(pred, levels = common_levels)
+y_test <- factor(y_test, levels = common_levels)
+
+score <- sum(predict(rf) == y_train) / length(y_train)
+
+score2 <- sum(pred == y_test) / length(y_test)
+
+cat("Training set accuracy:", sprintf("%.3f\n", score))
+
+cat("Test set accuracy:", sprintf("%.3f\n", score2))
+
+
+```
+
+
+
+Evaluating the best model on test data
+
+
+```{r}
+ranking <- read.csv('Icc_ranking.csv')
+
+fixtures <- read.csv('Fixtures.csv')
+
+pred_set <- list()
+```
+
+
+```{r}
+
+fixtures <- fixtures %>%
+  mutate(first_position = ranking$Team_ranking[match(Team_1, ranking$Team_name)])
+
+fixtures <- fixtures %>%
+  mutate(second_position = ranking$Team_ranking[match(Team_2, ranking$Team_name)])
+fixtures <- head(fixtures, 45)
+head(fixtures)
+
+
+```
+
+
+```{r}
+fixtures$first_position <- ifelse(is.na(fixtures$first_position),
+                                  mean(fixtures$first_position, na.rm = TRUE),
+                                  fixtures$first_position)
+
+fixtures$second_position <- ifelse(is.na(fixtures$second_position),
+                                   mean(fixtures$second_position, na.rm = TRUE),
+                                   fixtures$second_position)
+
+head(fixtures)
+
+```
+
+
+```{r}
+# Predicting winning teams 
+pred_set <- list()
+
+for (i in 1:nrow(fixtures)) {
+  if (fixtures$first_position[i] < fixtures$second_position[i]) {
+    pred_set[[i]] <- data.frame(Team_1 = fixtures$Team_1[i],
+                                 Team_2 = fixtures$Team_2[i],
+                                 winning_team = NA)
+  } else {
+    pred_set[[i]] <- data.frame(Team_1 = fixtures$Team_2[i],
+                                 Team_2 = fixtures$Team_1[i],
+                                 winning_team = NA)
+  }
+}
+
+pred_set <- do.call(rbind, pred_set)
+
+backup_pred_set <- pred_set
+
+head(pred_set)
+
+```
+
+
+```{r}
+pred_set <- dummy_cols(pred_set, select_columns = c("Team_1", "Team_2"), remove_selected_columns = TRUE)
+
+pred_set <- as.data.frame(pred_set)
+
+missing_cols <- setdiff(names(final), names(pred_set))
+
+for (c in missing_cols) {
+  pred_set[[c]] <- 0
+}
+
+pred_set <- pred_set[, names(final)]
+
+pred_set <- pred_set[, !names(pred_set) %in% 'Winner']
+
+head(pred_set)
+
+```
+
+
+Interpret the model results
+
+```{r}
+# Predictions
+predictions <- predict(rf, newdata = pred_set, type = "response")
+
+for (i in 1:nrow(fixtures)) {
+  cat(backup_pred_set[i, "Team_2"], " vs ", backup_pred_set[i, "Team_1"], "\n")
+  
+  if (predictions[i] == 1) {
+    cat("Winner: ", backup_pred_set[i, "Team_2"], "\n")
+  } else {
+    cat("Winner: ", backup_pred_set[i, "Team_1"], "\n")
+  }
+  
+  cat("\n")
+}
+
+```
+
+
+```{r}
+
+semi <- list(list('Pakistan', 'Australia'), list('England', 'India'))
+
+print(semi)
+
+```
+
+
+```{r}
+#function to predict Winner
+clean_and_predict <- function(matches, ranking, final, rf) {
+  positions <- c()
+
+  for (match in matches) {
+    positions <- c(positions, ranking$Team_ranking[ranking$Team_name == match[1]])
+    positions <- c(positions, ranking$Team_ranking[ranking$Team_name == match[2]])
+  }
+  
+  pred_set <- list()
+  
+  i <- 1
+  j <- 1
+  
+  while (i <= length(positions)) {
+    dict1 <- list(
+      Team_1 = c(),
+      Team_2 = c()
+    )
+    
+    if (positions[i] < positions[i + 1]) {
+      dict1$Team_1 <- c(dict1$Team_1, matches[[j]][[1]])
+      dict1$Team_2 <- c(dict1$Team_2, matches[[j]][[2]])
+    } else {
+      dict1$Team_1 <- c(dict1$Team_1, matches[[j]][[2]])
+      dict1$Team_2 <- c(dict1$Team_2, matches[[j]][[1]])
+    }
+    pred_set <- c(pred_set, list(dict1))
+    i <- i + 2
+    j <- j + 1
+  }
+  
+  pred_set_df <- do.call(rbind, lapply(pred_set, data.frame, stringsAsFactors = FALSE))
+  
+  backup_pred_set <- pred_set_df
+
+  pred_set_df <- dummy_cols(pred_set_df, select_columns = c("Team_1", "Team_2"), remove_selected_columns = TRUE)
+  
+  missing_cols2 <- setdiff(names(final), names(pred_set_df))
+  
+  for (c in missing_cols2) {
+    pred_set_df[[c]] <- 0
+  }
+  
+  pred_set_df <- pred_set_df %>%
+    dplyr::select(names(final))
+
+  pred_set_df <- pred_set_df[, !(names(pred_set_df) %in% c("Winner"))]
+  
+  predictions <- predict(rf, newdata = pred_set_df)
+
+  for (i in 1:nrow(pred_set_df)) {
+    cat(paste(backup_pred_set[i, "Team_2"], " vs ", backup_pred_set[i, "Team_1"], "\n"))
+    
+    if (predictions[i] == 1) {
+      cat("Winner: ", backup_pred_set[i, "Team_2"], "\n")
+    } else {
+      cat("Winner: ", backup_pred_set[i, "Team_1"], "\n")
+    }
+    
+    cat("\n")
+  }
+  
+}
+
+```
+
+
+```{r}
+clean_and_predict(semi, ranking, final, rf)
+```
+
+```{r}
+finals = list(list('Australia', 'India'))
+```
+
+
+```{r}
+clean_and_predict(finals, ranking, final, rf)
+```
+
+
+```{r}
+# Confusion Matrix Creation
+Y_predicted <- factor(pred)
+y_test <- factor(y_test)
+
+common_levels <- union(levels(Y_predicted), levels(y_test))
+
+Y_predicted <- factor(Y_predicted, levels = common_levels)
+y_test <- factor(y_test, levels = common_levels)
+
+conf_matrix <- confusionMatrix(Y_predicted, y_test)
+
+
+```
+
+
+```{r}
+
+heatmap(conf_matrix$table, 
+        Colv = NA, Rowv = NA, 
+        margins=c(10,10),
+        col = colorRampPalette(c("white", "steelblue"))(100),
+        main = "Confusion Matrix for Random Forest",
+        xlab = "Predicted Values",
+        ylab = "Test Values")
+
+```
+
+
